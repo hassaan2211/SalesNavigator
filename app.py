@@ -10,7 +10,7 @@ import json
 app = Flask(__name__)
 
 # Configure OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY", "sk-LkzfkppbLFpGodyrtIy_asPvjCHru_fxN4JREu67s5T3BlbkFJ2l5b3QzhVxy5r-WWR-frEBNsXTbQLJnr3AabxipsQA")
+openai.api_key = os.getenv("OPENAI_API_KEY", "sk-svcacct-m-9nrlFj6OY6LgXWLboOxC2p7X-cVlqWpz1t1ZsmXsqaGiY8KhEk4FGDp-UZ-HM5DO9zT3BlbkFJ1e1S8TUMXc2FmA1sdFOmBIFHp1m6vgKseDJ1-373h-VjKdCDDbbShHJcvCM_Y0YS18YA")
 
 # SQLAlchemy configuration for MySQL database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_Iqrl_2qmZTRxm7WrA30@fyh-crm-sm.h.aivencloud.com:19991/fyh'
@@ -43,6 +43,7 @@ class Product(db.Model):
             return f'https://haluansama.com/crm-sales/{photo}'
         return 'https://via.placeholder.com/150'
 
+# Function to detect user intent using GPT-4
 def detect_user_intent(user_message):
     try:
         gpt_intent_response = openai.ChatCompletion.create(
@@ -51,16 +52,13 @@ def detect_user_intent(user_message):
                 {
                     "role": "system",
                     "content": """
-                        You are an assistant that detects the user's intent and responds accordingly. Possible intents include:
-                        - general: for greetings like "hello", "hi", or general queries like "how are you?" or "help me."
-                        - sales_order: when the user is asking about an order or sales order inquiry.
-                        - product_search: when the user is asking to search for products like "Search drills", "Looking for hammer", etc.
-                        - If the user mentions both sales order and product in the same query, 
-                        prioritize 'sales_order' intent and include the product in the response.
-                        
+                        You are an assistant for Hardware Store, You name is F.Y.H Smart Agent that detects the user's intent and responds accordingly. Possible intents include:
+                        - general: for greetings, or If questions regarding general are asked reply using QUESTIONS and answers.  QUESTIONS and answers are only for general
+                        - sales_order: when the user is asking about an order or sales order inquiry like "Search for sales order", "Search for order", "which is the most sold product". 
+                        - product_search: when the user is asking to search like "Search for product drills", "Looking for drills", if someone mention sales order or order then it is sales order category.
+                        - Do not change the user input when sending the response forward
                         Respond with: {"intent": "<intent>", "response": "<response>", "category": "<category_name_if_any>"}
                         
-                        If the message includes generic greetings, mark it as `general`. If the user is asking for a product, mark it as `product_search`. If it's related to orders, mark it as `sales_order`.
                         QUESTIONS and answers = {
                         ("What products does FYH Online Store offer?", "FYH Online Store specializes in products like mechanical scales, digital scales, hardware tools, power tools, food processing machinery, agriculture tools and equipment, industrial tools and machinery, construction tools and materials, and automotive products."),
                         ("How long has FYH Online Store been in business?", "FYH Online Store, run by Fong Yuan Hung Import and Export Sdn. Bhd., has been serving customers since 1980."),
@@ -104,22 +102,15 @@ def detect_user_intent(user_message):
         logger.error(f"Error detecting intent: {str(e)}")
         return {"intent": "general", "response": "Hello! How may I assist you today?"}
 
-@app.route('/detect_intent', methods=['POST'])
-def detect_intent():
-    try:
-        user_message = request.json.get('message')
-        intent_data = detect_user_intent(user_message)
-        logger.info(f"Detected intent: {intent_data['intent']} for message: {user_message}")
-        return jsonify(intent_data)
-    except Exception as e:
-        logger.error(f"Error in intent detection: {str(e)}")
-        return jsonify({"error": str(e)}), 500
 
 @app.route('/chat', methods=['POST'])
 def handle_chat():
     try:
         user_message = request.json.get('message')
         selected_category = request.json.get('category')  # Get selected category from frontend
+
+        # Print the received category for debugging
+        print(f"Received Category: {selected_category}")  # Debug print
 
         # Detect user intent using GPT
         intent_data = detect_user_intent(user_message)
@@ -129,15 +120,13 @@ def handle_chat():
         # Handle conversation based on intent and category
         if intent == "general":
             return jsonify({"response": intent_data.get("response")})
-
         elif intent == "sales_order":
             if selected_category == "sales_order":
                 return sales_order_inquiry()
             else:
                 return jsonify({"response": "It looks like you're asking about a sales order. Please switch to the 'Sales Order' category to proceed."})
-
         elif intent == "product_search":
-            if selected_category == "product_search":
+            if selected_category == "search_product":
                 search_term = user_message
                 return search_products(search_term=search_term)
             else:
@@ -148,6 +137,7 @@ def handle_chat():
     except Exception as e:
         logger.error(f"Error in chat handling: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 
 
@@ -250,15 +240,19 @@ def handle_search_with_products(product_name="", category_name=None, sub_categor
 
 @app.route('/search', methods=['GET'])
 def search_products(search_term=None):
-    if not search_term:  # Check if search_term is passed directly
+    if not search_term:
         search_term = request.args.get('q', '')
 
     category_id = request.args.get('category_id')
     sub_category_id = request.args.get('sub_category_id')
 
     response_message, matched_products = handle_search_with_products(search_term, category_id, sub_category_id)
-    return jsonify(matched_products if matched_products else {"message": response_message})
 
+    # Ensure the response includes a "products" key for search_product intent
+    return jsonify({
+        "response": response_message,
+        "products": matched_products if matched_products else []
+    })
 
     
 # API endpoint for sales order inquiries
@@ -370,13 +364,29 @@ def sales_order_inquiry():
             params['product_count'] = entities['product_count']
         else:
             having_clause = ""
-        if 'product_name' in entities and 'product_quantity' in entities:
-            conditions.append("LOWER(cart_item.product_name) LIKE :product_name AND cart_item.qty = :product_quantity")
-            params['product_name'] = f"%{entities['product_name'].lower()}%"
-            params['product_quantity'] = entities['product_quantity']
-        elif 'product_name' in entities:
-            conditions.append("LOWER(cart_item.product_name) LIKE :product_name")
-            params['product_name'] = f"%{entities['product_name'].lower()}%"
+
+        # Add rapidfuzz logic for product name matching
+        if 'product_name' in entities:
+            product_name = entities['product_name'].lower()
+
+            # Fetch all product names from the database
+            all_products_query = """
+                SELECT DISTINCT LOWER(cart_item.product_name)
+                FROM cart_item
+            """
+            all_products = db.session.execute(text(all_products_query)).fetchall()
+            
+            all_product_names = [row[0] for row in all_products]  # Convert to list of product names
+            
+            # Use rapidfuzz for fuzzy matching on product names
+            matches = process.extract(product_name, all_product_names, scorer=fuzz.partial_ratio, limit=5)
+            matched_product_names = [match[0] for match in matches if match[1] > 90] 
+
+            # If we have matched product names, use them in the SQL query
+            if matched_product_names:
+                conditions.append("LOWER(cart_item.product_name) IN :product_names")
+                params['product_names'] = tuple(matched_product_names)
+
         if 'order_id' in entities:
             conditions.append("cart.id = :order_id")
             params['order_id'] = entities['order_id']
@@ -424,10 +434,6 @@ def sales_order_inquiry():
             quantities = row['quantities'].split(',')
             unit_prices = row['unit_prices'].split(',')
             item_totals = row['item_totals'].split(',')
-            product_names = product_names[:10]
-            quantities = quantities[:10]
-            unit_prices = unit_prices[:10]
-            item_totals = item_totals[:10]
 
             for i in range(len(product_names)):
                 orders[order_id]['items'].append({
