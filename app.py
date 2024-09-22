@@ -8,16 +8,11 @@ import json
 
 app = Flask(__name__)
 
-
 openai.api_key = os.getenv("OPENAI_API_KEY", "sk-svcacct-m-9nrlFj6OY6LgXWLboOxC2p7X-cVlqWpz1t1ZsmXsqaGiY8KhEk4FGDp-UZ-HM5DO9zT3BlbkFJ1e1S8TUMXc2FmA1sdFOmBIFHp1m6vgKseDJ1-373h-VjKdCDDbbShHJcvCM_Y0YS18YA")
-
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_Iqrl_2qmZTRxm7WrA30@fyh-crm-sm.h.aivencloud.com:19991/fyh'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-
-
-
 
 
 class Product(db.Model):
@@ -110,7 +105,6 @@ def handle_chat():
         intent = intent_data.get("intent")
         category = intent_data.get("category", None)
 
-
         if intent == "general":
             return jsonify({"response": intent_data.get("response")})
         elif intent == "sales_order":
@@ -149,6 +143,7 @@ def preprocess_with_gpt(text):
         return cleaned_text
     except Exception as e:
         return text
+
 
 def handle_search_with_products(product_name="", category_name=None, sub_category_name=None):
     search_keywords = preprocess_with_gpt(product_name)
@@ -209,7 +204,6 @@ def handle_search_with_products(product_name="", category_name=None, sub_categor
     except Exception as e:
         return f"Error: {str(e)}", []
 
-
     if not matched_products:
         all_products = Product.query.all()
         product_dicts = [product.to_dict() for product in all_products]
@@ -224,7 +218,6 @@ def handle_search_with_products(product_name="", category_name=None, sub_categor
     return "Here are the products I found:", matched_products if matched_products else []
 
 
-
 @app.route('/search', methods=['GET'])
 def search_products(search_term=None):
     if not search_term:
@@ -235,13 +228,11 @@ def search_products(search_term=None):
 
     response_message, matched_products = handle_search_with_products(search_term, category_id, sub_category_id)
 
-
     return jsonify({
         "response": response_message,
         "products": matched_products if matched_products else []
     })
 
-    
 
 @app.route('/sales_order_inquiry', methods=['POST'])
 def sales_order_inquiry():
@@ -359,7 +350,7 @@ def sales_order_inquiry():
             """
             all_products = db.session.execute(text(all_products_query)).fetchall()
             
-            all_product_names = [row[0] for row in all_products]  # Convert to list of product names
+            all_product_names = [row[0] for row in all_products]
 
             matches = process.extract(product_name, all_product_names, scorer=fuzz.partial_ratio, limit=5)
             matched_product_names = [match[0] for match in matches if match[1] > 90] 
@@ -420,7 +411,6 @@ def sales_order_inquiry():
                     'unit_price': float(unit_prices[i]),
                     'total': float(item_totals[i])
                 })
-
 
         if not orders:
             return jsonify({"response": "It seems you're asking about product search. Please switch to the 'Search Product' category to proceed."})
