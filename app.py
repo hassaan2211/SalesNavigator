@@ -2,25 +2,24 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import openai
 import os
-import logging
 from sqlalchemy import text
 from rapidfuzz import fuzz, process
 import json
 
 app = Flask(__name__)
 
-# Configure OpenAI API key
+
 openai.api_key = os.getenv("OPENAI_API_KEY", "sk-svcacct-m-9nrlFj6OY6LgXWLboOxC2p7X-cVlqWpz1t1ZsmXsqaGiY8KhEk4FGDp-UZ-HM5DO9zT3BlbkFJ1e1S8TUMXc2FmA1sdFOmBIFHp1m6vgKseDJ1-373h-VjKdCDDbbShHJcvCM_Y0YS18YA")
 
-# SQLAlchemy configuration for MySQL database
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_Iqrl_2qmZTRxm7WrA30@fyh-crm-sm.h.aivencloud.com:19991/fyh'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
-# Define Product model for database interaction
+
+
+
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_name = db.Column(db.String(255), nullable=False)
@@ -43,7 +42,7 @@ class Product(db.Model):
             return f'https://haluansama.com/crm-sales/{photo}'
         return 'https://via.placeholder.com/150'
 
-# Function to detect user intent using GPT-4
+
 def detect_user_intent(user_message):
     try:
         gpt_intent_response = openai.ChatCompletion.create(
@@ -97,9 +96,8 @@ def detect_user_intent(user_message):
             temperature=0.3,
         )
         intent_response = gpt_intent_response['choices'][0]['message']['content'].strip()
-        return json.loads(intent_response)  # Parsing the intent response into a JSON object
+        return json.loads(intent_response)
     except Exception as e:
-        logger.error(f"Error detecting intent: {str(e)}")
         return {"intent": "general", "response": "Hello! How may I assist you today?"}
 
 
@@ -107,17 +105,12 @@ def detect_user_intent(user_message):
 def handle_chat():
     try:
         user_message = request.json.get('message')
-        selected_category = request.json.get('category')  # Get selected category from frontend
-
-        # Print the received category for debugging
-        print(f"Received Category: {selected_category}")  # Debug print
-
-        # Detect user intent using GPT
+        selected_category = request.json.get('category')
         intent_data = detect_user_intent(user_message)
         intent = intent_data.get("intent")
         category = intent_data.get("category", None)
 
-        # Handle conversation based on intent and category
+
         if intent == "general":
             return jsonify({"response": intent_data.get("response")})
         elif intent == "sales_order":
@@ -135,13 +128,9 @@ def handle_chat():
             return jsonify({"response": "Sorry, I didn't understand that. Can you clarify?"})
 
     except Exception as e:
-        logger.error(f"Error in chat handling: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
-
-
-# Preprocess product search queries using GPT
 def preprocess_with_gpt(text):
     try:
         gpt_response = openai.ChatCompletion.create(
@@ -159,18 +148,17 @@ def preprocess_with_gpt(text):
         cleaned_text = gpt_response['choices'][0]['message']['content'].strip()
         return cleaned_text
     except Exception as e:
-        logger.error(f"Error in GPT preprocessing: {str(e)}")
         return text
 
 def handle_search_with_products(product_name="", category_name=None, sub_category_name=None):
-    search_keywords = preprocess_with_gpt(product_name)  # Send query to GPT for preprocessing
+    search_keywords = preprocess_with_gpt(product_name)
     if not search_keywords:
         return "Error: Unable to process search query.", []
 
     try:
-        extracted_data = json.loads(search_keywords)  # Make sure GPT returns valid JSON
+        extracted_data = json.loads(search_keywords)
         product_name = extracted_data['product']
-        color = extracted_data.get('color')  # Extract color if available
+        color = extracted_data.get('color')
         search_pattern = f"%{product_name}%"
 
         query = """
@@ -219,10 +207,9 @@ def handle_search_with_products(product_name="", category_name=None, sub_categor
             })
 
     except Exception as e:
-        logger.error(f"Error executing search query: {str(e)}")
         return f"Error: {str(e)}", []
 
-    # Fuzzy search using rapidfuzz if no exact matches
+
     if not matched_products:
         all_products = Product.query.all()
         product_dicts = [product.to_dict() for product in all_products]
@@ -248,14 +235,14 @@ def search_products(search_term=None):
 
     response_message, matched_products = handle_search_with_products(search_term, category_id, sub_category_id)
 
-    # Ensure the response includes a "products" key for search_product intent
+
     return jsonify({
         "response": response_message,
         "products": matched_products if matched_products else []
     })
 
     
-# API endpoint for sales order inquiries
+
 @app.route('/sales_order_inquiry', methods=['POST'])
 def sales_order_inquiry():
     try:
@@ -364,12 +351,8 @@ def sales_order_inquiry():
             params['product_count'] = entities['product_count']
         else:
             having_clause = ""
-
-        # Add rapidfuzz logic for product name matching
         if 'product_name' in entities:
             product_name = entities['product_name'].lower()
-
-            # Fetch all product names from the database
             all_products_query = """
                 SELECT DISTINCT LOWER(cart_item.product_name)
                 FROM cart_item
@@ -377,20 +360,15 @@ def sales_order_inquiry():
             all_products = db.session.execute(text(all_products_query)).fetchall()
             
             all_product_names = [row[0] for row in all_products]  # Convert to list of product names
-            
-            # Use rapidfuzz for fuzzy matching on product names
+
             matches = process.extract(product_name, all_product_names, scorer=fuzz.partial_ratio, limit=5)
             matched_product_names = [match[0] for match in matches if match[1] > 90] 
-
-            # If we have matched product names, use them in the SQL query
             if matched_product_names:
                 conditions.append("LOWER(cart_item.product_name) IN :product_names")
                 params['product_names'] = tuple(matched_product_names)
-
         if 'order_id' in entities:
             conditions.append("cart.id = :order_id")
             params['order_id'] = entities['order_id']
-
         query_conditions = " AND ".join(conditions) if conditions else "1=1"
         sort_order = entities.get('sort_order', 'desc')
         limit = entities.get('limit', 10)
@@ -443,17 +421,16 @@ def sales_order_inquiry():
                     'total': float(item_totals[i])
                 })
 
-        # Check if no sales orders were found and suggest switching category
+
         if not orders:
             return jsonify({"response": "It seems you're asking about product search. Please switch to the 'Search Product' category to proceed."})
 
         return jsonify({"response": "Here is the sales order information", "sales_orders": list(orders.values())})
 
     except Exception as e:
-        logger.error(f"Error occurred: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# Default route to check if the API is running
+
 @app.route('/')
 def index():
     return "Welcome to the GPT-4 Flask API! Use /chat to interact with the AI."
