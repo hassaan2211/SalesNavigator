@@ -263,7 +263,7 @@ def sales_order_inquiry():
                     - `cart_item` table, which contains:
                     - `cart_id` (the ID of the sales order),
                     - `product_name` (the name of the product),
-                    - `qty` (quantity of the product in the order),
+                    - `qty` (quantity of the product in the order: e.g., 15 if the user asks for "show me sales order with 15 hammer"),
                     - `unit_price` (unit price of the product),
                     - `total` (total price for the product).
 
@@ -275,7 +275,7 @@ def sales_order_inquiry():
                     - If the user asks for "first", use `asc` (ascending order).
                     - If the user asks for "last", use `desc` (descending order).
                     - **`product_name`**: The name of the product in the sales order, if specified.
-                    - **`product_quantity`**: The quantity of the product, if specified.
+                    - **`product_quantity`**: The quantity or qty of the product, if specified(e.g., 15 if the user asks for "show me sales order with 15 hammer").
                     - **`order_id`**: The ID of the sales order, if specified.
                     - **`company_name`**: The company name of the customer, if specified.
                     - **`total`**: The total amount of the sales order, if specified.
@@ -350,7 +350,7 @@ def sales_order_inquiry():
             """
             all_products = db.session.execute(text(all_products_query)).fetchall()
             
-            all_product_names = [row[0] for row in all_products]
+            all_product_names = [row[0] for row in all_products]  # Convert to list of product names
 
             matches = process.extract(product_name, all_product_names, scorer=fuzz.partial_ratio, limit=5)
             matched_product_names = [match[0] for match in matches if match[1] > 90] 
