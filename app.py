@@ -8,9 +8,9 @@ import json
 
 app = Flask(__name__)
 
-openai.api_key = os.getenv("OPENAI_API_KEY", "sk-svcacct-m-9nrlFj6OY6LgXWLboOxC2p7X-cVlqWpz1t1ZsmXsqaGiY8KhEk4FGDp-UZ-HM5DO9zT3BlbkFJ1e1S8TUMXc2FmA1sdFOmBIFHp1m6vgKseDJ1-373h-VjKdCDDbbShHJcvCM_Y0YS18YA")
+openai.api_key = os.getenv("OPENAI_API_KEY", "")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_Iqrl_2qmZTRxm7WrA30@fyh-crm-sm.h.aivencloud.com:19991/fyh'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI", "")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
