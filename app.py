@@ -91,13 +91,8 @@ def detect_user_intent(user_message):
             temperature=0.3,
         )
         intent_response = gpt_intent_response['choices'][0]['message']['content'].strip()
-
-        # Log what GPT-4 responds with
-        print(f"GPT response: {intent_response}")
-        
         return json.loads(intent_response)
     except Exception as e:
-        print(f"Error during intent detection: {e}")
         return {"intent": "general", "response": "Hello! How may I assist you today?"}
 
 
