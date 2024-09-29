@@ -44,7 +44,7 @@ class Product(db.Model):
 def detect_user_intent(user_message):
     try:
         gpt_intent_response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
