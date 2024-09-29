@@ -3,11 +3,13 @@ from flask_sqlalchemy import SQLAlchemy
 import openai
 import os
 from sqlalchemy import text
-from rapidfuzz import fuzz, process  # type: ignore
+from rapidfuzz import fuzz, process # type: ignore
 import json
-import requests
+from flask_cors import CORS
+
 
 app = Flask(__name__)
+CORS(app)
 
 openai.api_key = os.getenv("OPENAI_API_KEY", "")
 
@@ -65,7 +67,7 @@ def detect_user_intent(user_message):
                         ("Can customers create an account on the website?", "Account creation is restricted to admins and salesmen only. Customers can browse and place orders without creating an account."),
                         ("What should I do if I forgot my password?", "Salesmen should contact the admin to reset their password at support@questmarketing.com.my."),
                         ("How do I change my password?", "Salesmen need to email the admin at support@questmarketing.com.my to request a password change."),
-                        ("Who can access the admin features?", "Only authorized admins and salesmen can access admin features. Contact your admin for permissions."),
+                        ("Who can access the admin features?", "Only authorized admins and salesmen can access admin features. Contact your admin for permissions.")
                         ("How do I place an order?", "Add products to your cart on our website and proceed to checkout. For assistance, contact our sales team."),
                         ("What are the payment methods available?", "We accept credit/debit cards, bank transfers, and online payment gateways."),
                         ("How can I track my order status?", "You'll receive a tracking number via email after placing an order. Use it to track your order on our website."),
@@ -75,7 +77,7 @@ def detect_user_intent(user_message):
                         ("Do you ship internationally?", "Our primary market is East Malaysia, but we may accommodate international shipping requests. Contact customer service for details."),
                         ("Can I cancel or modify my order after placing it?", "You can modify or cancel orders within a limited timeframe. Contact customer service as soon as possible."),
                         ("What warranties do you offer on your products?", "Most products come with a manufacturer's warranty. Check product details or contact support for warranty information."),
-                        ("How do I register an account on your website?", "Click on 'Sign In' and select 'Create an Account'. Follow the prompts to complete registration."),
+                        ("How do I register an account on your website?", "Click on 'Sign In' and select 'Create an Account'. Follow the prompts to complete registration.")
                         ("How do I log in to the admin or salesman portal?", "The login portal is for admins and salesmen only. Click on 'Sign In' on the homepage and enter your credentials."),
                         ("Are there any promotions or discounts available?", "Yes, we offer regular promotions and discounts. Check the promotions page or contact our sales team."),
                         ("How can I check the availability of a specific product?", "Search for the product on our website or contact customer service with the product name or ID."),
@@ -130,11 +132,13 @@ def preprocess_with_gpt(text):
     try:
         gpt_response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
-            messages=[{"role": "system", "content": """
+            messages=[
+                {"role": "system", "content": """
                 Extract product name, color, and attributes from queries.
                 Return in format: {"product": "<name>", "color": "<color>", "other_attributes": "<attributes>"}
-            """},
-            {"role": "user", "content": f"Preprocess this text: {text}."}],
+                """},
+                {"role": "user", "content": f"Preprocess this text: {text}."}
+            ],
             max_tokens=50,
             temperature=0.3,
         )
@@ -424,37 +428,6 @@ def sales_order_inquiry():
 def index():
     return "Welcome to the GPT-4 Flask API! Use /chat to interact with the AI."
 
-
-# Adding the API calls to the PHP endpoints
-PRODUCT_SEARCH_URL = 'https://haluansama.com/crm-sales/api/chatbot_page/get_product_search.php'
-SALES_ORDER_INQUIRY_URL = 'https://haluansama.com/crm-sales/api/chatbot_page/get_sales_order_inquiry.php'
-
-
-@app.route('/api/search', methods=['GET'])
-def api_search():
-    search_term = request.args.get('q', '')
-    if not search_term:
-        return jsonify({"error": "Search term is required."}), 400
-
-    response = requests.get(PRODUCT_SEARCH_URL, params={'q': search_term})
-
-    if response.status_code == 200:
-        return jsonify(response.json())
-    else:
-        return jsonify({"error": "Failed to fetch products from the API."}), response.status_code
-
-
-@app.route('/api/sales_order_inquiry', methods=['POST'])
-def api_sales_order_inquiry():
-    data = request.get_json()
-
-    response = requests.post(SALES_ORDER_INQUIRY_URL, json=data)
-
-    if response.status_code == 200:
-        return jsonify(response.json())
-    else:
-        return jsonify({"error": "Failed to fetch sales orders from the API."}), response.status_code
-
-
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=os.getenv("PORT", 5000), debug=True)
+
