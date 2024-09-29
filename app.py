@@ -5,13 +5,35 @@ import os
 from sqlalchemy import text
 from rapidfuzz import fuzz, process # type: ignore
 import json
-from flask_cors import CORS
-
+import requests
 
 app = Flask(__name__)
-CORS(app)
 
-openai.api_key = os.getenv("OPENAI_API_KEY", "")
+# Function to fetch the API key from the external PHP script
+def fetch_openai_api_key():
+    try:
+        # Replace with the URL where the get-api.php script is hosted
+        response = requests.get('https://haluansama.com/crm-sales/api/chatbot_page/get_api.php')
+        if response.status_code == 200:
+            data = response.json()
+            if data['status'] == 'success':
+                return data['api_key']
+            else:
+                print("Error:", data['message'])
+        else:
+            print("Error fetching API key:", response.status_code)
+        return None
+    except Exception as e:
+        print("Exception occurred while fetching API key:", str(e))
+        return None
+
+# Fetch the OpenAI API key
+openai_api_key = fetch_openai_api_key()
+if openai_api_key:
+    openai.api_key = openai_api_key
+else:
+    print("Failed to fetch OpenAI API key")
+
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_Iqrl_2qmZTRxm7WrA30@fyh-crm-sm.h.aivencloud.com:19991/fyh'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -429,5 +451,4 @@ def index():
     return "Welcome to the GPT-4 Flask API! Use /chat to interact with the AI."
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=os.getenv("PORT", 5000), debug=True)
-
+    app.run(debug=True)
