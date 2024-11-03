@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import openai
+from openai import OpenAI
 import os
 from sqlalchemy import text
 from rapidfuzz import fuzz, process
@@ -14,7 +15,12 @@ logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 CORS(app)
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+
+
+client = OpenAI(
+  api_key=os.environ['OPENAI_API_KEY'],  # this is also the default, it can be omitted
+)
+
 logging.debug(f"Loaded API Key: {openai.api_key}")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_Iqrl_2qmZTRxm7WrA30@fyh-crm-sm.h.aivencloud.com:19991/fyh'
