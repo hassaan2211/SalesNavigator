@@ -94,12 +94,22 @@ def detect_user_intent(user_message):
                 },
                 {"role": "user", "content": f"{user_message}"}
             ],
-            max_tokens=100,
+            max_tokens=150,
             temperature=0.3,
         )
+
         intent_response = gpt_intent_response['choices'][0]['message']['content'].strip()
-        return json.loads(intent_response)
+
+        # Attempt to parse the response as JSON
+        try:
+            return json.loads(intent_response)
+        except json.JSONDecodeError:
+            # Log the unparseable response for debugging
+            logging.error(f"Failed to parse response: {intent_response}")
+            return {"intent": "general", "response": "Hello! How may I assist you today?"}
+
     except Exception as e:
+        logging.error(f"Error in detect_user_intent: {str(e)}")
         return {"intent": "general", "response": "Hello! How may I assist you today?"}
 
 
