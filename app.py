@@ -9,24 +9,27 @@ import logging
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# Load environment variables
+
+
 load_dotenv()
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
-
 app = Flask(__name__)
-CORS(app)
 
 # OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY", "")
+# Ensure DB_PORT is an integer
+db_port = os.getenv('DB_PORT', '3306')
+try:
+    db_port = int(db_port)
+except ValueError:
+    db_port = 3306  # Fallback to 3306 if DB_PORT is not a valid integer
 
-# Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = (
     f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
-    f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
+    f"@{os.getenv('DB_HOST')}:{db_port}/{os.getenv('DB_NAME')}"
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 
 
