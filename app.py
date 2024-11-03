@@ -2,34 +2,26 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import openai
 import os
+from dotenv import load_dotenv
 from sqlalchemy import text
 from rapidfuzz import fuzz, process
 import json
 import logging
-from flask_cors import CORS
-from dotenv import load_dotenv
 
-
-
-load_dotenv()
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 
-# OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY", "")
-# Ensure DB_PORT is an integer
-db_port = os.getenv('DB_PORT', '3306')
-try:
-    db_port = int(db_port)
-except ValueError:
-    db_port = 3306  # Fallback to 3306 if DB_PORT is not a valid integer
 
+load_dotenv()
 app.config['SQLALCHEMY_DATABASE_URI'] = (
-    f"mysql+pymysql://{os.getenv('CPANEL_DB_USER')}:{os.getenv('CPANEL_DB_PASSWORD')}"
-    f"@{os.getenv('CPANEL_DB_HOST')}:{db_port}/{os.getenv('CPANEL_DB_NAME')}"
+    f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
+    f"@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
 )
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 
