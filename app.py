@@ -14,7 +14,8 @@ logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 CORS(app)
 
-openai.api_key = os.getenv("OPENAI_API_KEY", "")
+openai.api_key = os.getenv("OPENAI_API_KEY")
+logging.debug(f"Loaded API Key: {openai.api_key}")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_Iqrl_2qmZTRxm7WrA30@fyh-crm-sm.h.aivencloud.com:19991/fyh'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
