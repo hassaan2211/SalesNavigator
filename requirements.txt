@@ -1,5 +1,5 @@
 annotated-types==0.7.0
-anyio==4.4.0
+anyio>=3.5.0,<4  # Updated to a compatible version range
 blinker==1.8.2
 certifi==2024.8.30
 click==8.1.7
@@ -29,5 +29,4 @@ Werkzeug==3.0.4
 gunicorn==20.1.0
 PyMySQL==1.1.1
 python-dotenv==1.0.1
-flask-cors==3.0.10
 requests==2.28.1
