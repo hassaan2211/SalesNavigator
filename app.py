@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import openai
-from openai import OpenAI
 import os
 from sqlalchemy import text
 from rapidfuzz import fuzz, process
@@ -15,15 +14,9 @@ logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 CORS(app)
 
+openai.api_key = os.getenv("OPENAI_API_KEY", "")
 
-
-client = OpenAI(
-  api_key=os.environ['OPENAI_API_KEY'],  # this is also the default, it can be omitted
-)
-
-logging.debug(f"Loaded API Key: {openai.api_key}")
-
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_Iqrl_2qmZTRxm7WrA30@fyh-crm-sm.h.aivencloud.com:19991/fyh'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://projekkonsultant_admin:jonathan28423*@localhost/projekkonsultant_crm_sales_navigator_aiven'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -100,22 +93,12 @@ def detect_user_intent(user_message):
                 },
                 {"role": "user", "content": f"{user_message}"}
             ],
-            max_tokens=150,
+            max_tokens=100,
             temperature=0.3,
         )
-
         intent_response = gpt_intent_response['choices'][0]['message']['content'].strip()
-
-        # Attempt to parse the response as JSON
-        try:
-            return json.loads(intent_response)
-        except json.JSONDecodeError:
-            # Log the unparseable response for debugging
-            logging.error(f"Failed to parse response: {intent_response}")
-            return {"intent": "general", "response": "Hello! How may I assist you today?"}
-
+        return json.loads(intent_response)
     except Exception as e:
-        logging.error(f"Error in detect_user_intent: {str(e)}")
         return {"intent": "general", "response": "Hello! How may I assist you today?"}
 
 
