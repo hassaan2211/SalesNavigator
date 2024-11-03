@@ -3,37 +3,18 @@ from flask_sqlalchemy import SQLAlchemy
 import openai
 import os
 from sqlalchemy import text
-from rapidfuzz import fuzz, process # type: ignore
+from rapidfuzz import fuzz, process
 import json
-import requests
+import logging
+from flask_cors import CORS
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
+CORS(app)
 
-# Function to fetch the API key from the external PHP script
-def fetch_openai_api_key():
-    try:
-        # Replace with the URL where the get-api.php script is hosted
-        response = requests.get('https://haluansama.com/crm-sales/api/chatbot_page/get_api.php')
-        if response.status_code == 200:
-            data = response.json()
-            if data['status'] == 'success':
-                return data['api_key']
-            else:
-                print("Error:", data['message'])
-        else:
-            print("Error fetching API key:", response.status_code)
-        return None
-    except Exception as e:
-        print("Exception occurred while fetching API key:", str(e))
-        return None
-
-# Fetch the OpenAI API key
-openai_api_key = fetch_openai_api_key()
-if openai_api_key:
-    openai.api_key = openai_api_key
-else:
-    print("Failed to fetch OpenAI API key")
-
+openai.api_key = os.getenv("OPENAI_API_KEY", "")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_Iqrl_2qmZTRxm7WrA30@fyh-crm-sm.h.aivencloud.com:19991/fyh'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -129,12 +110,13 @@ def handle_chat():
         intent_data = detect_user_intent(user_message)
         intent = intent_data.get("intent")
         category = intent_data.get("category", None)
-
+        loggedInUsername = request.json.get('username')
+        
         if intent == "general":
             return jsonify({"response": intent_data.get("response")})
         elif intent == "sales_order":
             if selected_category == "sales_order":
-                return sales_order_inquiry()
+                return sales_order_inquiry(loggedInUsername)
             else:
                 return jsonify({"response": "It looks like you're asking about a sales order. Please switch to the 'Sales Order' category to proceed."})
         elif intent == "product_search":
@@ -260,12 +242,18 @@ def search_products(search_term=None):
 
 
 @app.route('/sales_order_inquiry', methods=['POST'])
-def sales_order_inquiry():
+def sales_order_inquiry(loggedInUsername):
     try:
+        logging.debug("sales_order_inquiry endpoint called.")
         user_message = request.json.get('message')
         if not user_message:
+            logging.error("No message received in request.")
             return jsonify({"error": "Message is required"}), 400
 
+        # Log the received message
+        logging.debug(f"User message received: {user_message}")
+
+        # Use OpenAI to extract the relevant entities
         gpt_extraction_response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=[
@@ -334,116 +322,176 @@ def sales_order_inquiry():
             temperature=0.7,
         )
 
+        logging.debug("Received response from OpenAI GPT model.")
+
+        # Extract entities from OpenAI response
         extracted_entities = gpt_extraction_response['choices'][0]['message']['content'].strip()
+        logging.debug(f"Extracted entities from GPT: {extracted_entities}")
+
         try:
             entities = json.loads(extracted_entities)
-        except json.JSONDecodeError:
+            logging.debug(f"Parsed entities into JSON: {entities}")
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to decode GPT response into JSON: {str(e)}")
             return jsonify({"error": "Failed to extract entities from user query"}), 400
 
+        # Process the extracted entities like product search
+        response_message, sales_orders = process_sales_order_query(entities, loggedInUsername)
+
+        logging.debug(f"Sales order query result: {sales_orders}")
+
+        return jsonify({"response": response_message, "sales_orders": sales_orders})
+
+    except Exception as e:
+        logging.error(f"Error in sales_order_inquiry: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    
+
+def process_sales_order_query(entities, loggedInUsername):
+    try:
+        logging.debug(f"Processing sales order query with entities: {entities}")
         conditions, params = [], {}
+
+        # Add conditions based on extracted entities
         if 'status' in entities:
+            logging.debug(f"Adding condition for status: {entities['status']}")
             conditions.append("LOWER(cart.status) = :status")
             params['status'] = entities['status'].lower()
-        if 'buyer_area_name' in entities:
-            conditions.append("LOWER(cart.buyer_area_name) LIKE :buyer_area_name")
-            params['buyer_area_name'] = f"%{entities['buyer_area_name'].lower()}%"
-        if 'order_option' in entities:
-            conditions.append("LOWER(cart.order_option) LIKE :order_option")
-            params['order_option'] = f"%{entities['order_option'].lower()}%"
+
         if 'total' in entities:
             tolerance = 0.5
             total = entities['total']
+            logging.debug(f"Adding condition for total: {total}")
             conditions.append("cart.final_total BETWEEN :total_min AND :total_max")
             params['total_min'] = total - tolerance
             params['total_max'] = total + tolerance
-        if 'company_name' in entities:
-            conditions.append("LOWER(cart.customer_company_name) LIKE :company_name")
-            params['company_name'] = f"%{entities['company_name'].lower()}%"
+
         if 'date' in entities:
+            logging.debug(f"Adding condition for date: {entities['date']}")
             conditions.append("DATE(cart.created) = :date")
             params['date'] = entities['date']
-        if 'product_count' in entities:
-            having_clause = "HAVING COUNT(cart_item.id) = :product_count"
-            params['product_count'] = entities['product_count']
-        else:
-            having_clause = ""
+
+        if 'company_name' in entities:
+            logging.debug(f"Adding condition for company name: {entities['company_name']}")
+            conditions.append("LOWER(cart.customer_company_name) LIKE :company_name")
+            params['company_name'] = f"%{entities['company_name'].lower()}%"
+
+        if 'buyer_area_name' in entities:
+            logging.debug(f"Adding condition for buyer area: {entities['buyer_area_name']}")
+            conditions.append("LOWER(cart.buyer_area_name) LIKE :buyer_area_name")
+            params['buyer_area_name'] = f"%{entities['buyer_area_name'].lower()}%"
+
+        if 'order_option' in entities:
+            logging.debug(f"Adding condition for order option: {entities['order_option']}")
+            conditions.append("LOWER(cart.order_option) LIKE :order_option")
+            params['order_option'] = f"%{entities['order_option'].lower()}%"
+
+        if 'order_id' in entities:
+            logging.debug(f"Adding condition for order ID: {entities['order_id']}")
+            conditions.append("cart.id = :order_id")
+            params['order_id'] = entities['order_id']
+
         if 'product_name' in entities:
             product_name = entities['product_name'].lower()
+            logging.debug(f"Searching for product name matches: {product_name}")
             all_products_query = """
                 SELECT DISTINCT LOWER(cart_item.product_name)
                 FROM cart_item
             """
             all_products = db.session.execute(text(all_products_query)).fetchall()
-            
-            all_product_names = [row[0] for row in all_products]  # Convert to list of product names
+            all_product_names = [row[0] for row in all_products]
 
             matches = process.extract(product_name, all_product_names, scorer=fuzz.partial_ratio, limit=5)
-            matched_product_names = [match[0] for match in matches if match[1] > 90] 
+            matched_product_names = [match[0] for match in matches if match[1] > 90]
+            logging.debug(f"Matched product names: {matched_product_names}")
+
             if matched_product_names:
                 conditions.append("LOWER(cart_item.product_name) IN :product_names")
                 params['product_names'] = tuple(matched_product_names)
-        if 'order_id' in entities:
-            conditions.append("cart.id = :order_id")
-            params['order_id'] = entities['order_id']
-        query_conditions = " AND ".join(conditions) if conditions else "1=1"
-        sort_order = entities.get('sort_order', 'desc')
-        limit = entities.get('limit', 10)
 
+        if 'product_count' in entities:
+            logging.debug(f"Adding condition for product count: {entities['product_count']}")
+            having_clause = "HAVING COUNT(cart_item.id) = :product_count"
+            params['product_count'] = entities['product_count']
+        else:
+            having_clause = ""
+
+        # Add condition for loggedInUsername
+        conditions.append("salesman.username = :loggedInUsername")
+        params['loggedInUsername'] = loggedInUsername
+
+        # Construct query conditions string
+        query_conditions = " AND ".join(conditions) if conditions else "1=1"
+        limit = entities.get('limit', 10)
+        sort_order = entities.get('sort_order', 'desc')
+
+        # Construct the final query
         sql_query = f"""
-            SELECT cart.id, cart.created, cart.status, cart.customer_company_name, cart.final_total,
+            SELECT
+                cart.id,
+                cart.created,
+                cart.status,
+                cart.customer_company_name,
+                cart.final_total,
                 GROUP_CONCAT(cart_item.product_name) AS product_names,
                 GROUP_CONCAT(cart_item.qty) AS quantities,
                 GROUP_CONCAT(cart_item.unit_price) AS unit_prices,
                 GROUP_CONCAT(cart_item.total) AS item_totals,
-                cart.order_option, cart.buyer_area_name
-            FROM cart
-            INNER JOIN cart_item ON cart.id = cart_item.cart_id
-            WHERE {query_conditions}
-            GROUP BY cart.id
+                cart.order_option,
+                cart.buyer_area_name,
+                salesman.username AS salesman_username
+            FROM
+                cart
+            INNER JOIN
+                cart_item ON cart.id = cart_item.cart_id
+            INNER JOIN
+                salesman ON cart.buyer_id = salesman.id
+            WHERE
+                {query_conditions}
+            GROUP BY
+                cart.id
             {having_clause}
-            ORDER BY cart.created {sort_order}
-            LIMIT :limit
+            ORDER BY
+                cart.created {sort_order}
+            LIMIT :limit;
         """
         params['limit'] = limit
 
+
+        logging.debug(f"Final SQL query: {sql_query} with params: {params}")
+
         result_set = db.session.execute(text(sql_query), params).fetchall()
 
-        orders = {}
+        orders = []
         for row in result_set:
             row = dict(row._mapping)
-            order_id = row['id']
-            if order_id not in orders:
-                orders[order_id] = {
-                    'order_id': order_id,
-                    'company_name': row['customer_company_name'],
-                    'created_date': row['created'].strftime('%Y-%m-%d'),
-                    'status': row['status'],
-                    'total': float(row['final_total']),
-                    'order_option': row['order_option'],
-                    'buyer_area_name': row['buyer_area_name'],
-                    'items': []
-                }
-
-            product_names = row['product_names'].split(',')
-            quantities = row['quantities'].split(',')
-            unit_prices = row['unit_prices'].split(',')
-            item_totals = row['item_totals'].split(',')
-
-            for i in range(len(product_names)):
-                orders[order_id]['items'].append({
-                    'product_name': product_names[i],
-                    'qty': int(quantities[i]),
-                    'unit_price': float(unit_prices[i]),
-                    'total': float(item_totals[i])
-                })
+            orders.append({
+                'order_id': row['id'],
+                'company_name': row['customer_company_name'],
+                'created_date': row['created'].strftime('%Y-%m-%d'),
+                'status': row['status'],
+                'total': float(row['final_total']),
+                'order_option': row['order_option'],
+                'buyer_area_name': row['buyer_area_name'],
+                'items': [{
+                    'product_name': name,
+                    'qty': int(qty),
+                    'unit_price': float(price),
+                    'total': float(total)
+                } for name, qty, price, total in zip(row['product_names'].split(','), row['quantities'].split(','), row['unit_prices'].split(','), row['item_totals'].split(','))]
+            })
 
         if not orders:
-            return jsonify({"response": "It seems you're asking about product search. Please switch to the 'Search Product' category to proceed."})
+            logging.warning("No matching sales orders found.")
+            return "No matching sales orders found.", []
 
-        return jsonify({"response": "Here is the sales order information", "sales_orders": list(orders.values())})
+        logging.debug(f"Found sales orders: {orders}")
+        return "Here are the matching sales orders:", orders
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"Error in processing sales order query: {str(e)}")
+        return f"Error: {str(e)}", []
+
 
 
 @app.route('/')
@@ -451,4 +499,4 @@ def index():
     return "Welcome to the GPT-4 Flask API! Use /chat to interact with the AI."
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
