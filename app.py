@@ -2,21 +2,25 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import openai
 import os
+from dotenv import load_dotenv
 from sqlalchemy import text
 from rapidfuzz import fuzz, process
 import json
 import logging
-from flask_cors import CORS
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
-CORS(app)
 
 openai.api_key = os.getenv("OPENAI_API_KEY", "")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://projekkonsultant_admin:jonathan28423*@localhost/projekkonsultant_crm_sales_navigator_aiven'
+app.config['SQLALCHEMY_DATABASE_URI'] = (
+    f"mysql+pymysql://{os.getenv('CPANEL_DB_USER')}:{os.getenv('CPANEL_DB_PASSWORD')}"
+    f"@{os.getenv('CPANEL_DB_HOST')}:{os.getenv('CPANEL_DB_PORT')}/{os.getenv('CPANEL_DB_NAME')}"
+)
+
+load_dotenv()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -329,11 +333,15 @@ def sales_order_inquiry(loggedInUsername):
         logging.debug(f"Extracted entities from GPT: {extracted_entities}")
 
         try:
+            # Sanitize the response to ensure it starts and ends with curly braces
+            extracted_entities = gpt_extraction_response['choices'][0]['message']['content'].strip()
+            # Attempt to parse the JSON
             entities = json.loads(extracted_entities)
             logging.debug(f"Parsed entities into JSON: {entities}")
         except json.JSONDecodeError as e:
             logging.error(f"Failed to decode GPT response into JSON: {str(e)}")
             return jsonify({"error": "Failed to extract entities from user query"}), 400
+
 
         # Process the extracted entities like product search
         response_message, sales_orders = process_sales_order_query(entities, loggedInUsername)
@@ -499,4 +507,5 @@ def index():
     return "Welcome to the GPT-4 Flask API! Use /chat to interact with the AI."
 
 if __name__ == '__main__':
+    # For Railway deployment, use host 0.0.0.0 and the PORT environment variable
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
