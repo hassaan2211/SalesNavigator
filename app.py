@@ -17,8 +17,8 @@ openai.api_key = os.getenv("OPENAI_API_KEY", "")
 
 load_dotenv()
 app.config['SQLALCHEMY_DATABASE_URI'] = (
-    f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
-    f"@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
+    f"mysql+pymysql://{os.getenv('CPANEL_DB_USER')}:{os.getenv('CPANEL_DB_PASSWORD')}"
+    f"@{os.getenv('CPANEL_DB_HOST')}/{os.getenv('CPANEL_DB_NAME')}"
 )
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -63,34 +63,34 @@ def detect_user_intent(user_message):
                         - Do not change the user input when sending the response forward
                         Respond with: {"intent": "<intent>", "response": "<response>", "category": "<category_name_if_any>"}
                         
-                        QUESTIONS and answers = {
-                        ("What products does FYH Online Store offer?", "FYH Online Store specializes in products like mechanical scales, digital scales, hardware tools, power tools, food processing machinery, agriculture tools and equipment, industrial tools and machinery, construction tools and materials, and automotive products."),
-                        ("How long has FYH Online Store been in business?", "FYH Online Store, run by Fong Yuan Hung Import and Export Sdn. Bhd., has been serving customers since 1980."),
-                        ("Where is FYH Online Store's market located?", "Our primary market is in East Malaysia, covering Sarawak and Sabah."),
-                        ("From which countries does FYH Online Store import products?", "We import products from countries like China, Taiwan, South Korea, Thailand, Vietnam, the Philippines, India, the UK, Australia, and New Zealand."),
-                        ("How can I contact FYH Online Store for more information?", "For support, email us at support@questmarketing.com.my. For business inquiries, use the contact details on our website."),
-                        ("What is the annual import volume of FYH Online Store?", "We import approximately 10-15 containers (20 feet each) of goods annually."),
-                        ("What product categories are available?", "We offer: Weighing Equipment, Agriculture Tools, Construction Materials, Industrial Machinery, General Hardware, Automotive Products."),
-                        ("Can customers create an account on the website?", "Account creation is restricted to admins and salesmen only. Customers can browse and place orders without creating an account."),
-                        ("What should I do if I forgot my password?", "Salesmen should contact the admin to reset their password at support@questmarketing.com.my."),
-                        ("How do I change my password?", "Salesmen need to email the admin at support@questmarketing.com.my to request a password change."),
-                        ("Who can access the admin features?", "Only authorized admins and salesmen can access admin features. Contact your admin for permissions.")
-                        ("How do I place an order?", "Add products to your cart on our website and proceed to checkout. For assistance, contact our sales team."),
-                        ("What are the payment methods available?", "We accept credit/debit cards, bank transfers, and online payment gateways."),
-                        ("How can I track my order status?", "You'll receive a tracking number via email after placing an order. Use it to track your order on our website."),
-                        ("What is your return and exchange policy?", "We offer returns and exchanges for defective or damaged products. Check our terms and conditions or contact support."),
-                        ("How can I contact customer service?", "Email us at support@questmarketing.com.my or use the contact form on our website."),
-                        ("Are there any shipping charges?", "Shipping charges depend on order size and destination. The cost is calculated during checkout."),
-                        ("Do you ship internationally?", "Our primary market is East Malaysia, but we may accommodate international shipping requests. Contact customer service for details."),
-                        ("Can I cancel or modify my order after placing it?", "You can modify or cancel orders within a limited timeframe. Contact customer service as soon as possible."),
-                        ("What warranties do you offer on your products?", "Most products come with a manufacturer's warranty. Check product details or contact support for warranty information."),
-                        ("How do I register an account on your website?", "Click on 'Sign In' and select 'Create an Account'. Follow the prompts to complete registration.")
-                        ("How do I log in to the admin or salesman portal?", "The login portal is for admins and salesmen only. Click on 'Sign In' on the homepage and enter your credentials."),
-                        ("Are there any promotions or discounts available?", "Yes, we offer regular promotions and discounts. Check the promotions page or contact our sales team."),
-                        ("How can I check the availability of a specific product?", "Search for the product on our website or contact customer service with the product name or ID."),
-                        ("Do you offer bulk purchase discounts?", "Yes, we provide bulk purchase discounts. Contact our sales team for details."),
-                        ("Can I get a product demo or sample before purchasing?", "We may offer demos or samples for certain products. Contact our sales team to inquire."),
-                        ("How do I become a distributor for FYH products?", "Fill out the distributor application on our website or contact our business development team.")
+                        QUESTIONS, Answers = {
+                        ("What products does Sales Navigator Online Store offer? Sales Navigator Online Store specializes in products like mechanical scales, digital scales, hardware tools, power tools, food processing machinery, agriculture tools and equipment, industrial tools and machinery, construction tools and materials, and automotive products."),
+                        ("How long has Sales Navigator Online Store been in business? Sales Navigator Online Store, run by Fong Yuan Hung Import and Export Sdn. Bhd., has been serving customers since 1980."),
+                        ("Where is Sales Navigator Online Store's market located? Our primary market is in East Malaysia, covering Sarawak and Sabah."),
+                        ("From which countries does Sales Navigator Online Store import products? We import products from countries like China, Taiwan, South Korea, Thailand, Vietnam, the Philippines, India, the UK, Australia, and New Zealand."),
+                        ("How can I contact Sales Navigator Online Store for more information? For support, email us at support@questmarketing.com.my. For business inquiries, use the contact details on our website."),
+                        ("What is the annual import volume of Sales Navigator Online Store? We import approximately 10-15 containers (20 feet each) of goods annually."),
+                        ("What product categories are available? We offer: Weighing Equipment, Agriculture Tools, Construction Materials, Industrial Machinery, General Hardware, Automotive Products."),
+                        ("Can customers create an account on the website? Account creation is restricted to admins and salesmen only. Customers can browse and place orders without creating an account."),
+                        ("What should I do if I forgot my password? Salesmen should contact the admin to reset their password at support@questmarketing.com.my."),
+                        ("How do I change my password? Salesmen need to email the admin at support@questmarketing.com.my to request a password change."),
+                        ("Who can access the admin features? Only authorized admins and salesmen can access admin features. Contact your admin for permissions.")
+                        ("How do I place an order? Add products to your cart on our website and proceed to checkout. For assistance, contact our sales team."),
+                        ("What are the payment methods available? We accept credit/debit cards, bank transfers, and online payment gateways."),
+                        ("How can I track my order status? You'll receive a tracking number via email after placing an order. Use it to track your order on our website."),
+                        ("What is your return and exchange policy? We offer returns and exchanges for defective or damaged products. Check our terms and conditions or contact support."),
+                        ("How can I contact customer service? Email us at support@questmarketing.com.my or use the contact form on our website."),
+                        ("Are there any shipping charges? Shipping charges depend on order size and destination. The cost is calculated during checkout."),
+                        ("Do you ship internationally? Our primary market is East Malaysia, but we may accommodate international shipping requests. Contact customer service for details."),
+                        ("Can I cancel or modify my order after placing it? You can modify or cancel orders within a limited timeframe. Contact customer service as soon as possible."),
+                        ("What warranties do you offer on your products? Most products come with a manufacturer's warranty. Check product details or contact support for warranty information."),
+                        ("How do I register an account on your website? Click on 'Sign In' and select 'Create an Account'. Follow the prompts to complete registration.")
+                        ("How do I log in to the admin or salesman portal? The login portal is for admins and salesmen only. Click on 'Sign In' on the homepage and enter your credentials."),
+                        ("Are there any promotions or discounts available? Yes, we offer regular promotions and discounts. Check the promotions page or contact our sales team."),
+                        ("How can I check the availability of a specific product? Search for the product on our website or contact customer service with the product name or ID."),
+                        ("Do you offer bulk purchase discounts? Yes, we provide bulk purchase discounts. Contact our sales team for details."),
+                        ("Can I get a product demo or sample before purchasing? We may offer demos or samples for certain products. Contact our sales team to inquire."),
+                        ("How do I become a distributor for Sales Navigator products? Fill out the distributor application on our website or contact our business development team.")
                     ]
                 }
                     """
@@ -268,38 +268,38 @@ def sales_order_inquiry(loggedInUsername):
 
                     ### The database has the following structure:
 
-                    - cart table, which contains:
-                    - id (the sales order ID),
-                    - created (the date the order was created),
-                    - status (e.g., "pending", "void", "confirm"),
-                    - customer_company_name (the name of the customer’s company),
-                    - final_total (the final total of the sales order),
-                    - order_option (e.g., "Urgent", "Credit Term"),
-                    - buyer_area_name (e.g., "Kuching", "KCH").
+                    - `cart` table, which contains:
+                    - `id` (the sales order ID),
+                    - `created` (the date the order was created),
+                    - `status` (e.g., "pending", "void", "confirm"),
+                    - `customer_company_name` (the name of the customer’s company),
+                    - `final_total` (the final total of the sales order),
+                    - `order_option` (e.g., "Urgent", "Credit Term"),
+                    - `buyer_area_name` (e.g., "Kuching", "KCH").
 
-                    - cart_item table, which contains:
-                    - cart_id (the ID of the sales order),
-                    - product_name (the name of the product),
-                    - qty (quantity of the product in the order: e.g., 15 if the user asks for "show me sales order with 15 hammer"),
-                    - unit_price (unit price of the product),
-                    - total (total price for the product).
+                    - `cart_item` table, which contains:
+                    - `cart_id` (the ID of the sales order),
+                    - `product_name` (the name of the product),
+                    - `qty` (quantity of the product in the order: e.g., 15 if the user asks for "show me sales order with 15 hammer"),
+                    - `unit_price` (unit price of the product),
+                    - `total` (total price for the product).
 
                     ### Your task is to extract the following entities from the user’s query:
 
-                    - **status**: The status of the sales order (e.g., "pending", "void", "confirm", "complete").
-                    - **limit**: The number of distinct sales orders to return (e.g., 5 if the user asks for "5 sales orders").
-                    - **sort_order**: The sorting direction for the sales orders:
-                    - If the user asks for "first", use asc (ascending order).
-                    - If the user asks for "last", use desc (descending order).
-                    - **product_name**: The name of the product in the sales order, if specified.
-                    - **product_quantity**: The quantity or qty of the product, if specified(e.g., 15 if the user asks for "show me sales order with 15 hammer").
-                    - **order_id**: The ID of the sales order, if specified.
-                    - **company_name**: The company name of the customer, if specified.
-                    - **total**: The total amount of the sales order, if specified.
-                    - **buyer_area_name**: The area name of the buyer (e.g., "Kuching", "KCH"), if specified.
-                    - **order_option**: The order option (e.g., "Urgent", "Credit Term"), if specified.
-                    - **date**: The date of the sales order, if specified.
-                    - **product_count**: The number of different products in the order, if specified.
+                    - **`status`**: The status of the sales order (e.g., "pending", "void", "confirm", "complete").
+                    - **`limit`**: The number of distinct sales orders to return (e.g., 5 if the user asks for "5 sales orders").
+                    - **`sort_order`**: The sorting direction for the sales orders:
+                    - If the user asks for "first", use `asc` (ascending order).
+                    - If the user asks for "last", use `desc` (descending order).
+                    - **`product_name`**: The name of the product in the sales order, if specified.
+                    - **`product_quantity`**: The quantity or qty of the product, if specified(e.g., 15 if the user asks for "show me sales order with 15 hammer").
+                    - **`order_id`**: The ID of the sales order, if specified.
+                    - **`company_name`**: The company name of the customer, if specified.
+                    - **`total`**: The total amount of the sales order, if specified.
+                    - **`buyer_area_name`**: The area name of the buyer (e.g., "Kuching", "KCH"), if specified.
+                    - **`order_option`**: The order option (e.g., "Urgent", "Credit Term"), if specified.
+                    - **`date`**: The date of the sales order, if specified.
+                    - **`product_count`**: The number of different products in the order, if specified.
 
                     ### SQL Query Example:
                     - Extract relevant entities from user input and format it as:
@@ -507,5 +507,4 @@ def index():
     return "Welcome to the GPT-4 Flask API! Use /chat to interact with the AI."
 
 if __name__ == '__main__':
-    # For Railway deployment, use host 0.0.0.0 and the PORT environment variable
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    app.run(debug=True)
